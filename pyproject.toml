@@ -3,7 +3,7 @@ name = "mlops-with-databricks"
 version = "0.0.1"
 description = "MLOps with Databricks"
 readme = "README.md"
-requires-python = "==3.11"
+requires-python = "==3.11.10"
 dependencies = ["lightgbm>=4.5.0, <5",
                 "scikit-learn>=1.5.1, <2",
                 "cloudpickle>=3.0.0, <4",
@@ -14,6 +14,8 @@ dependencies = ["lightgbm>=4.5.0, <5",
                 "cffi>=1.17.1, <2",
                 "scipy>=1.14.1, <2",
                 "matplotlib>=3.9.2, <4",
+                "seaborn>=0.12.0",
+                "pre-commit>=4.0.1",
                 "databricks-feature-engineering>=0.6, <1"]
 
 [project.optional-dependencies]
@@ -37,3 +39,7 @@ ignore = [
 
 [tool.ruff.format]
 indent-style = "space"
+
+[tool.ruff.lint]
+ignore = ["E501", "F401"]
+select = ["E", "F"]
