@@ -1,9 +1,9 @@
 # Databricks notebook source
 
+import yaml
 from house_price.data_processor import DataProcessor
 from house_price.price_model import PriceModel
-from house_price.utils import visualize_results, plot_feature_importance
-import yaml
+from house_price.utils import plot_feature_importance, visualize_results
 
 # Load configuration
 with open("../project_config.yml", "r") as file:

@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 
+
 def visualize_results(y_test, y_pred):
     """
     Visualize the actual vs predicted booking status using a count plot.
@@ -19,6 +20,7 @@ def visualize_results(y_test, y_pred):
     plt.tight_layout()  # Adjust layout for better fit
     plt.show()  # Display the plot
 
+
 def plot_feature_importance(feature_importance, feature_names, top_n=10):
     """
     Plot the top N feature importances in a horizontal bar chart.
@@ -30,12 +32,13 @@ def plot_feature_importance(feature_importance, feature_names, top_n=10):
     """
     plt.figure(figsize=(10, 6))
     sorted_idx = np.argsort(feature_importance)  # Sort indices of feature importance
-    pos = np.arange(sorted_idx[-top_n:].shape[0]) + .5  # Position for bars
+    pos = np.arange(sorted_idx[-top_n:].shape[0]) + 0.5  # Position for bars
     plt.barh(pos, feature_importance[sorted_idx[-top_n:]])  # Horizontal bar chart
     plt.yticks(pos, feature_names[sorted_idx[-top_n:]])  # Set y-tick labels
-    plt.title(f'Top {top_n} Feature Importance')  # Title of the plot
+    plt.title(f"Top {top_n} Feature Importance")  # Title of the plot
     plt.tight_layout()  # Adjust layout for better fit
     plt.show()  # Display the plot
+
 
 def plot_confusion_matrix(disp, cm):
     """
@@ -46,5 +49,5 @@ def plot_confusion_matrix(disp, cm):
     cm (numpy.ndarray): The confusion matrix as a 2D array.
     """
     disp.plot(cmap=plt.cm.Blues)  # Plot confusion matrix with a color map
-    plt.title('Confusion Matrix')  # Title of the plot
+    plt.title("Confusion Matrix")  # Title of the plot
     plt.show()  # Display the plot

@@ -39,3 +39,7 @@ ignore = [
 
 [tool.ruff.format]
 indent-style = "space"
+
+[tool.ruff.lint]
+ignore = ["E501", "F401"]
+select = ["E", "F"]

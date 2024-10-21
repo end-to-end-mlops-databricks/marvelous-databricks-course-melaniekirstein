@@ -1,20 +1,24 @@
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import ConfusionMatrixDisplay, accuracy_score, classification_report, confusion_matrix
 from sklearn.pipeline import Pipeline
-from sklearn.metrics import accuracy_score, classification_report, ConfusionMatrixDisplay, confusion_matrix
-from sklearn.preprocessing import LabelEncoder
-import pandas as pd
+
 
 class ReservationModel:
     def __init__(self, preprocessor, config):
         """Initialize the ReservationModel with a preprocessor and configuration."""
         self.config = config
-        self.model = Pipeline(steps=[
-            ('preprocessor', preprocessor),  # Preprocessing step
-            ('classifier', RandomForestClassifier(
-                n_estimators=config['parameters']['n_estimators'],
-                random_state=config['parameters'].get('random_state', 42)  # Random state for reproducibility
-            ))
-        ])
+        self.model = Pipeline(
+            steps=[
+                ("preprocessor", preprocessor),  # Preprocessing step
+                (
+                    "classifier",
+                    RandomForestClassifier(
+                        n_estimators=config["parameters"]["n_estimators"],
+                        random_state=config["parameters"].get("random_state", 42),  # Random state for reproducibility
+                    ),
+                ),
+            ]
+        )
 
     def train(self, X_train, y_train):
         """
@@ -68,8 +72,8 @@ class ReservationModel:
             feature_importance: Array of feature importances.
             feature_names: Names of the features used in the model.
         """
-        feature_importance = self.model.named_steps['classifier'].feature_importances_  # Get feature importances
-        feature_names = self.model.named_steps['preprocessor'].get_feature_names_out()  # Get feature names
+        feature_importance = self.model.named_steps["classifier"].feature_importances_  # Get feature importances
+        feature_names = self.model.named_steps["preprocessor"].get_feature_names_out()  # Get feature names
         return feature_importance, feature_names  # Return importances and names
 
     def get_confusion_matrix(self, y_test, y_pred):
