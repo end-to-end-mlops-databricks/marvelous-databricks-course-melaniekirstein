@@ -14,6 +14,7 @@ dependencies = ["lightgbm>=4.5.0, <5",
                 "cffi>=1.17.1, <2",
                 "scipy>=1.14.1, <2",
                 "matplotlib>=3.9.2, <4",
+                "seaborn>=0.12.0",
                 "databricks-feature-engineering>=0.6, <1"]
 
 [project.optional-dependencies]
