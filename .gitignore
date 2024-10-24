@@ -95,3 +95,6 @@ dmypy.json
 # VS code configuration
 .vscode
 .history
+
+.databricks
+.ruff_cache/
