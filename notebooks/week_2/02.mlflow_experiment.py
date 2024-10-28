@@ -5,12 +5,12 @@ import mlflow
 
 mlflow.set_tracking_uri("databricks")
 
-mlflow.set_experiment(experiment_name="/Shared/house-price-basic")
-mlflow.set_experiment_tags({"repository_name": "house-price"})
+mlflow.set_experiment(experiment_name="/Shared/hotel-reservations-mk")
+mlflow.set_experiment_tags({"repository_name": "hotel-reservations-mk"})
 
 # COMMAND ----------
 experiments = mlflow.search_experiments(
-    filter_string="tags.repository_name='house-price'"
+    filter_string="tags.repository_name='hotel-reservations-mk'"
 )
 print(experiments)
 
@@ -20,7 +20,7 @@ with open("mlflow_experiment.json", "w") as json_file:
 # COMMAND ----------
 with mlflow.start_run(
     run_name="demo-run",
-    tags={"git_sha": "ffa63b430205ff7",
+    tags={"git_sha": "50a9297454e49cbec3c6b681981b38f1485b3c10",
           "branch": "week2"},
     description="demo run",
 ) as run:
@@ -28,8 +28,8 @@ with mlflow.start_run(
     mlflow.log_metrics({"metric1": 1.0, "metric2": 2.0})
 # COMMAND ----------
 run_id = mlflow.search_runs(
-    experiment_names=["/Shared/house-price-basic"],
-    filter_string="tags.git_sha='ffa63b430205ff7'",
+    experiment_names=["/Shared/hotel-reservations-mk"],
+    filter_string="tags.git_sha='50a9297454e49cbec3c6b681981b38f1485b3c10'",
 ).run_id[0]
 run_info = mlflow.get_run(run_id=f"{run_id}").to_dictionary()
 print(run_info)
@@ -44,3 +44,5 @@ print(run_info["data"]["metrics"])
 # COMMAND ----------
 print(run_info["data"]["params"])
 
+
+# COMMAND ----------

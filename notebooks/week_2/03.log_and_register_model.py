@@ -1,21 +1,24 @@
 # Databricks notebook source
 
 from pyspark.sql import SparkSession
-from house_price.config import ProjectConfig
+from hotel_reservations.config import ProjectConfig
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
-from lightgbm import LGBMRegressor
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+from lightgbm import LGBMClassifier
+from sklearn.metrics import accuracy_score, classification_report
 import mlflow
 from mlflow.models import infer_signature
+import os
 
 mlflow.set_tracking_uri("databricks")
 mlflow.set_registry_uri('databricks-uc') # It must be -uc for registering models to Unity Catalog
 
 # COMMAND ----------
 
-config = ProjectConfig.from_yaml(config_path="../../project_config.yml")
+base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) #os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+config_path = os.path.join(base_dir, "project_config.yml")
+config = ProjectConfig.from_yaml(config_path=config_path)
 
 # Extract configuration details
 num_features = config.num_features
@@ -49,13 +52,13 @@ preprocessor = ColumnTransformer(
 # Create the pipeline with preprocessing and the LightGBM regressor
 pipeline = Pipeline(steps=[
     ('preprocessor', preprocessor),
-    ('regressor', LGBMRegressor(**parameters))
+    ('classifier', LGBMClassifier(**parameters))
 ])
 
 
 # COMMAND ----------
-mlflow.set_experiment(experiment_name='/Shared/house-prices')
-git_sha = "ffa63b430205ff7"
+mlflow.set_experiment(experiment_name='/Shared/hotel-reservations-mk')
+git_sha = "50a9297454e49cbec3c6b681981b38f1485b3c10"
 
 # Start an MLflow run to track the training process
 with mlflow.start_run(
@@ -67,21 +70,25 @@ with mlflow.start_run(
     pipeline.fit(X_train, y_train)
     y_pred = pipeline.predict(X_test)
 
-    # Evaluate the model performance
-    mse = mean_squared_error(y_test, y_pred)
-    mae = mean_absolute_error(y_test, y_pred)
-    r2 = r2_score(y_test, y_pred)
+    # Evaluate the model performance using classification metrics
+    accuracy = accuracy_score(y_test, y_pred)
+    report = classification_report(y_test, y_pred, output_dict=True)
 
-    print(f"Mean Squared Error: {mse}")
-    print(f"Mean Absolute Error: {mae}")
-    print(f"R2 Score: {r2}")
+    print(f"Accuracy: {accuracy}")
+    print(f"Classification Report:\n{report}")
 
     # Log parameters, metrics, and the model to MLflow
     mlflow.log_param("model_type", "LightGBM with preprocessing")
     mlflow.log_params(parameters)
-    mlflow.log_metric("mse", mse)
-    mlflow.log_metric("mae", mae)
-    mlflow.log_metric("r2_score", r2)
+    mlflow.log_metric("accuracy", accuracy)
+
+    # Log classification report metrics
+    for class_label, metrics in report.items():
+        if isinstance(metrics, dict):
+            mlflow.log_metric(f"precision_{class_label}", metrics['precision'])
+            mlflow.log_metric(f"recall_{class_label}", metrics['recall'])
+            mlflow.log_metric(f"f1-score_{class_label}", metrics['f1-score'])
+
     signature = infer_signature(model_input=X_train, model_output=y_pred)
 
     dataset = mlflow.data.from_spark(
@@ -99,7 +106,7 @@ with mlflow.start_run(
 # COMMAND ----------
 model_version = mlflow.register_model(
     model_uri=f'runs:/{run_id}/lightgbm-pipeline-model',
-    name=f"{catalog_name}.{schema_name}.house_prices_model_basic",
+    name=f"{catalog_name}.{schema_name}.hotel_reservations_model_basic",
     tags={"git_sha": f"{git_sha}"})
 
 # COMMAND ----------
