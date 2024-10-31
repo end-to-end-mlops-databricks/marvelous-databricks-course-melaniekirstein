@@ -10,7 +10,7 @@ __pycache__/
 *.so
 
 # Folders
-data/
+# data/
 
 # Distribution / packaging
 .Python
@@ -98,6 +98,12 @@ dmypy.json
 
 .databricks
 .ruff_cache/
+
+# JSON files
+*.json
+
+# MLFlow
+mlruns/
 
 # JSON files
 *.json
