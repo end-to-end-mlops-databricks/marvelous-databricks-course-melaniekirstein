@@ -3,7 +3,7 @@
 
 # COMMAND ----------
 
-dbutils.library.restartPython() 
+dbutils.library.restartPython()
 
 # COMMAND ----------
 import yaml
@@ -12,7 +12,7 @@ from pyspark.sql import SparkSession
 from databricks.sdk import WorkspaceClient
 import mlflow
 from pyspark.sql import functions as F
-from lightgbm import LGBMClassifier  
+from lightgbm import LGBMClassifier
 from mlflow.models import infer_signature
 from sklearn.compose import ColumnTransformer
 from sklearn.metrics import accuracy_score, classification_report
@@ -72,13 +72,13 @@ spark.sql(f"""ALTER TABLE {feature_table_name}
 # Insert data into the feature table from both train and test sets
 spark.sql(f"""
         INSERT INTO {feature_table_name}
-        SELECT 
+        SELECT
             booking_id, lead_time, no_of_special_requests, avg_price_per_room
         FROM {catalog_name}.{schema_name}.train_set
         """)
 spark.sql(f"""
         INSERT INTO {feature_table_name}
-        SELECT 
+        SELECT
             booking_id, lead_time, no_of_special_requests, avg_price_per_room
         FROM {catalog_name}.{schema_name}.test_set""")
 
@@ -104,13 +104,19 @@ $$
 
 # COMMAND ----------
 # Load training and test sets
-train_set = spark.table(f"{catalog_name}.{schema_name}.train_set").drop("lead_time","no_of_special_requests","avg_price_per_room")
+train_set = spark.table(f"{catalog_name}.{schema_name}.train_set").drop(
+    "lead_time", "no_of_special_requests", "avg_price_per_room"
+)
 test_set = spark.table(f"{catalog_name}.{schema_name}.test_set").toPandas()
 
 # Cast YearBuilt to int for the function input
 # Cast relevant columns to double for the function input
-train_set = train_set.withColumn("no_of_previous_bookings_not_canceled", train_set["no_of_previous_bookings_not_canceled"].cast("double"))
-train_set = train_set.withColumn("no_of_previous_cancellations", train_set["no_of_previous_cancellations"].cast("double"))
+train_set = train_set.withColumn(
+    "no_of_previous_bookings_not_canceled", train_set["no_of_previous_bookings_not_canceled"].cast("double")
+)
+train_set = train_set.withColumn(
+    "no_of_previous_cancellations", train_set["no_of_previous_cancellations"].cast("double")
+)
 train_set = train_set.withColumn("booking_id", train_set["Booking_ID"].cast("string"))
 
 # Feature engineering setup
@@ -126,16 +132,21 @@ training_set = fe.create_training_set(
         FeatureFunction(
             udf_name=function_name,
             output_name="loyalty_score",
-            input_bindings={"no_of_previous_cancellations": "no_of_previous_cancellations", "no_of_previous_bookings_not_canceled": "no_of_previous_bookings_not_canceled"},
+            input_bindings={
+                "no_of_previous_cancellations": "no_of_previous_cancellations",
+                "no_of_previous_bookings_not_canceled": "no_of_previous_bookings_not_canceled",
+            },
         ),
-    ]
+    ],
 )
 
 # Load feature-engineered DataFrame
 training_df = training_set.load_df().toPandas()
 
 
-test_set["loyalty_score"] = (test_set["no_of_previous_bookings_not_canceled"]*1.5) + (test_set["no_of_week_nights"]*1.0)
+test_set["loyalty_score"] = (test_set["no_of_previous_bookings_not_canceled"] * 1.5) + (
+    test_set["no_of_week_nights"] * 1.0
+)
 
 
 # Split features and target
@@ -148,16 +159,13 @@ y_test = test_set[target]
 preprocessor = ColumnTransformer(
     transformers=[("cat", OneHotEncoder(handle_unknown="ignore"), cat_features)], remainder="passthrough"
 )
-pipeline = Pipeline(
-    steps=[("preprocessor", preprocessor), ("classifier", LGBMClassifier(**parameters))]
-)
+pipeline = Pipeline(steps=[("preprocessor", preprocessor), ("classifier", LGBMClassifier(**parameters))])
 
 # Set and start MLflow experiment
 mlflow.set_experiment(experiment_name="/Shared/hotel-reservations-mk")
 git_sha = "50a9297454e49cbec3c6b681981b38f1485b3c10"
 
-with mlflow.start_run(tags={"branch": "week2",
-                            "git_sha": f"{git_sha}"}) as run:
+with mlflow.start_run(tags={"branch": "week2", "git_sha": f"{git_sha}"}) as run:
     run_id = run.info.run_id
     pipeline.fit(X_train, y_train)
     y_pred = pipeline.predict(X_test)
@@ -185,7 +193,8 @@ with mlflow.start_run(tags={"branch": "week2",
         signature=signature,
     )
 mlflow.register_model(
-    model_uri=f'runs:/{run_id}/lightgbm-pipeline-model-fe',
-    name=f"{catalog_name}.{schema_name}.hotel_reservations_model_fe")
+    model_uri=f"runs:/{run_id}/lightgbm-pipeline-model-fe",
+    name=f"{catalog_name}.{schema_name}.hotel_reservations_model_fe",
+)
 
 # COMMAND ----------

@@ -14,9 +14,8 @@ config = ProjectConfig.from_yaml(config_path="../../project_config.yml")
 # COMMAND ----------
 # Load the hotel reservation dataset
 df = spark.read.csv(
-    "/Volumes/heiaepgah71pwedmld01001/mk_test/mlops_data/Hotel Reservations.csv",
-    header=True,
-    inferSchema=True).toPandas()
+    "/Volumes/heiaepgah71pwedmld01001/mk_test/mlops_data/Hotel Reservations.csv", header=True, inferSchema=True
+).toPandas()
 
 # COMMAND ----------
 data_processor = DataProcessor(pandas_df=df, config=config)

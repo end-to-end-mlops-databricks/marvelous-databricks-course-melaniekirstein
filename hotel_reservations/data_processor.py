@@ -40,22 +40,23 @@ class DataProcessor:
         self.y = self.df[target]
 
         # Create preprocessing steps for numeric data
-        numeric_transformer = Pipeline(steps=[
-            ('imputer', SimpleImputer(strategy='median')),
-            ('scaler', StandardScaler())
-        ])
+        numeric_transformer = Pipeline(
+            steps=[("imputer", SimpleImputer(strategy="median")), ("scaler", StandardScaler())]
+        )
 
         # Create preprocessing steps for categorical data
-        categorical_transformer = Pipeline(steps=[
-            ('imputer', SimpleImputer(strategy='constant', fill_value='missing')),
-            ('onehot', OneHotEncoder(handle_unknown='ignore'))
-        ])
+        categorical_transformer = Pipeline(
+            steps=[
+                ("imputer", SimpleImputer(strategy="constant", fill_value="missing")),
+                ("onehot", OneHotEncoder(handle_unknown="ignore")),
+            ]
+        )
 
         # Combine numeric and categorical preprocessing steps into a single transformer
         self.preprocessor = ColumnTransformer(
             transformers=[
-                ('num', numeric_transformer, self.config.num_features),
-                ('cat', categorical_transformer, self.config.cat_features)
+                ("num", numeric_transformer, self.config.num_features),
+                ("cat", categorical_transformer, self.config.cat_features),
             ]
         )
 
@@ -80,19 +81,27 @@ class DataProcessor:
         """Save the train and test sets into Databricks tables."""
 
         train_set_with_timestamp = spark.createDataFrame(train_set).withColumn(
-            "update_timestamp_utc", to_utc_timestamp(current_timestamp(), "UTC"))   
-        
+            "update_timestamp_utc", to_utc_timestamp(current_timestamp(), "UTC")
+        )
+
         test_set_with_timestamp = spark.createDataFrame(test_set).withColumn(
-            "update_timestamp_utc", to_utc_timestamp(current_timestamp(), "UTC"))
+            "update_timestamp_utc", to_utc_timestamp(current_timestamp(), "UTC")
+        )
 
         train_set_with_timestamp.write.mode("append").saveAsTable(
-            f"{self.config.catalog_name}.{self.config.schema_name}.train_set")
-        
-        test_set_with_timestamp.write.mode("append").saveAsTable(
-            f"{self.config.catalog_name}.{self.config.schema_name}.test_set")
+            f"{self.config.catalog_name}.{self.config.schema_name}.train_set"
+        )
 
-        spark.sql(f"ALTER TABLE {self.config.catalog_name}.{self.config.schema_name}.train_set "
-          "SET TBLPROPERTIES (delta.enableChangeDataFeed = true);")
-        
-        spark.sql(f"ALTER TABLE {self.config.catalog_name}.{self.config.schema_name}.test_set "
-          "SET TBLPROPERTIES (delta.enableChangeDataFeed = true);")
+        test_set_with_timestamp.write.mode("append").saveAsTable(
+            f"{self.config.catalog_name}.{self.config.schema_name}.test_set"
+        )
+
+        spark.sql(
+            f"ALTER TABLE {self.config.catalog_name}.{self.config.schema_name}.train_set "
+            "SET TBLPROPERTIES (delta.enableChangeDataFeed = true);"
+        )
+
+        spark.sql(
+            f"ALTER TABLE {self.config.catalog_name}.{self.config.schema_name}.test_set "
+            "SET TBLPROPERTIES (delta.enableChangeDataFeed = true);"
+        )

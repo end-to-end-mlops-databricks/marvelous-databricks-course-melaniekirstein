@@ -11,7 +11,7 @@ import mlflow
 from mlflow.models import infer_signature
 
 mlflow.set_tracking_uri("databricks")
-mlflow.set_registry_uri('databricks-uc') # It must be -uc for registering models to Unity Catalog
+mlflow.set_registry_uri("databricks-uc")  # It must be -uc for registering models to Unity Catalog
 
 # COMMAND ----------
 
@@ -42,25 +42,20 @@ y_test = test_set[target]
 # COMMAND ----------
 # Define the preprocessor for categorical features
 preprocessor = ColumnTransformer(
-    transformers=[('cat', OneHotEncoder(handle_unknown='ignore'), cat_features)], 
-    remainder='passthrough'
+    transformers=[("cat", OneHotEncoder(handle_unknown="ignore"), cat_features)], remainder="passthrough"
 )
 
 # Create the pipeline with preprocessing and the LightGBM regressor
-pipeline = Pipeline(steps=[
-    ('preprocessor', preprocessor),
-    ('classifier', LGBMClassifier(**parameters))
-])
+pipeline = Pipeline(steps=[("preprocessor", preprocessor), ("classifier", LGBMClassifier(**parameters))])
 
 
 # COMMAND ----------
-mlflow.set_experiment(experiment_name='/Shared/hotel-reservations-mk')
+mlflow.set_experiment(experiment_name="/Shared/hotel-reservations-mk")
 git_sha = "50a9297454e49cbec3c6b681981b38f1485b3c10"
 
 # Start an MLflow run to track the training process
 with mlflow.start_run(
-    tags={"git_sha": f"{git_sha}",
-          "branch": "week2"},
+    tags={"git_sha": f"{git_sha}", "branch": "week2"},
 ) as run:
     run_id = run.info.run_id
 
@@ -82,29 +77,24 @@ with mlflow.start_run(
     # Log classification report metrics
     for class_label, metrics in report.items():
         if isinstance(metrics, dict):
-            mlflow.log_metric(f"precision_{class_label}", metrics['precision'])
-            mlflow.log_metric(f"recall_{class_label}", metrics['recall'])
-            mlflow.log_metric(f"f1-score_{class_label}", metrics['f1-score'])
+            mlflow.log_metric(f"precision_{class_label}", metrics["precision"])
+            mlflow.log_metric(f"recall_{class_label}", metrics["recall"])
+            mlflow.log_metric(f"f1-score_{class_label}", metrics["f1-score"])
 
     signature = infer_signature(model_input=X_train, model_output=y_pred)
 
-    dataset = mlflow.data.from_spark(
-    train_set_spark, table_name=f"{catalog_name}.{schema_name}.train_set",
-    version="0")
+    dataset = mlflow.data.from_spark(train_set_spark, table_name=f"{catalog_name}.{schema_name}.train_set", version="0")
     mlflow.log_input(dataset, context="training")
-    
-    mlflow.sklearn.log_model(
-        sk_model=pipeline,
-        artifact_path="lightgbm-pipeline-model",
-        signature=signature
-    )
+
+    mlflow.sklearn.log_model(sk_model=pipeline, artifact_path="lightgbm-pipeline-model", signature=signature)
 
 
 # COMMAND ----------
 model_version = mlflow.register_model(
-    model_uri=f'runs:/{run_id}/lightgbm-pipeline-model',
+    model_uri=f"runs:/{run_id}/lightgbm-pipeline-model",
     name=f"{catalog_name}.{schema_name}.hotel_reservations_model_basic",
-    tags={"git_sha": f"{git_sha}"})
+    tags={"git_sha": f"{git_sha}"},
+)
 
 # COMMAND ----------
 run = mlflow.get_run(run_id)
@@ -113,4 +103,3 @@ dataset_source = mlflow.data.get_source(dataset_info)
 dataset_source.load()
 
 # COMMAND ----------
-
