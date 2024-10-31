@@ -33,8 +33,10 @@ class DataProcessor:
         target = self.config.target
         self.df = self.df.dropna(subset=[target])
 
+        id_field = self.config.id_field
+
         # Separate features and target variable based on configuration
-        self.X = self.df[self.config.num_features + self.config.cat_features]
+        self.X = self.df[[id_field] + self.config.num_features + self.config.cat_features]
         self.y = self.df[target]
 
         # Create preprocessing steps for numeric data

@@ -8,6 +8,7 @@ class ProjectConfig(BaseModel):
     target: str
     catalog_name: str
     schema_name: str
+    id_field: str
     parameters: Dict[str, Any]  # Dictionary to hold model-related parameters
 
     @classmethod

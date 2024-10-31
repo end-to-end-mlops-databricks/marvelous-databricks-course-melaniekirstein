@@ -9,16 +9,13 @@ from lightgbm import LGBMClassifier
 from sklearn.metrics import accuracy_score, classification_report
 import mlflow
 from mlflow.models import infer_signature
-import os
 
 mlflow.set_tracking_uri("databricks")
 mlflow.set_registry_uri('databricks-uc') # It must be -uc for registering models to Unity Catalog
 
 # COMMAND ----------
 
-base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) #os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-config_path = os.path.join(base_dir, "project_config.yml")
-config = ProjectConfig.from_yaml(config_path=config_path)
+config = ProjectConfig.from_yaml(config_path="../../project_config.yml")
 
 # Extract configuration details
 num_features = config.num_features
