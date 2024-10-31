@@ -1,37 +1,19 @@
 import pandas as pd
-from sklearn.compose import ColumnTransformer
-from sklearn.impute import SimpleImputer
+import yaml
+from pyspark.sql.functions import current_timestamp, to_utc_timestamp
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.impute import SimpleImputer
+from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from pyspark.sql import SparkSession
+from hotel_reservations.config import ProjectConfig
 
 
 class DataProcessor:
-    def __init__(self, filepath, config):
-        """
-        Initialize the DataProcessor class.
-
-        Parameters:
-        filepath (str): The path to the CSV file containing the data.
-        config (dict): A configuration dictionary specifying the target and feature columns.
-        """
-        self.df = self.load_data(filepath)
+    def __init__(self, pandas_df: pd.DataFrame, config: ProjectConfig):
+        self.df = pandas_df
         self.config = config
-        self.X = None
-        self.y = None
-        self.preprocessor = None
-
-    def load_data(self, filepath):
-        """
-        Load data from a CSV file.
-
-        Parameters:
-        filepath (str): The path to the CSV file.
-
-        Returns:
-        pandas.DataFrame: The loaded data as a DataFrame.
-        """
-        return pd.read_csv(filepath)
 
     def preprocess_data(self):
         """
@@ -48,11 +30,11 @@ class DataProcessor:
             self.preprocessor (ColumnTransformer): The preprocessing pipeline.
         """
         # Remove rows with missing values in the target column
-        target = self.config["target"]
-        self.df = self.df.dropna(subset=target)
+        target = self.config.target
+        self.df = self.df.dropna(subset=[target])
 
         # Separate features and target variable based on configuration
-        self.X = self.df[self.config["num_features"] + self.config["cat_features"]]
+        self.X = self.df[self.config.num_features + self.config.cat_features]
         self.y = self.df[target]
 
         # Create preprocessing steps for numeric data
@@ -71,8 +53,8 @@ class DataProcessor:
         # Combine numeric and categorical preprocessing steps into a single transformer
         self.preprocessor = ColumnTransformer(
             transformers=[
-                ("num", numeric_transformer, self.config["num_features"]),
-                ("cat", categorical_transformer, self.config["cat_features"]),
+                ("num", numeric_transformer, self.config.num_features),
+                ("cat", categorical_transformer, self.config.cat_features),
             ]
         )
 
@@ -92,3 +74,32 @@ class DataProcessor:
             y_test (pandas.Series): Testing target variable.
         """
         return train_test_split(self.X, self.y, test_size=test_size, random_state=random_state)
+
+    def save_to_catalog(self, train_set: pd.DataFrame, test_set: pd.DataFrame, spark: SparkSession):
+        """Save the train and test sets into Databricks tables."""
+
+        train_set_with_timestamp = spark.createDataFrame(train_set).withColumn(
+            "update_timestamp_utc", to_utc_timestamp(current_timestamp(), "UTC")
+        )
+
+        test_set_with_timestamp = spark.createDataFrame(test_set).withColumn(
+            "update_timestamp_utc", to_utc_timestamp(current_timestamp(), "UTC")
+        )
+
+        train_set_with_timestamp.write.mode("append").saveAsTable(
+            f"{self.config.catalog_name}.{self.config.schema_name}.train_set"
+        )
+
+        test_set_with_timestamp.write.mode("append").saveAsTable(
+            f"{self.config.catalog_name}.{self.config.schema_name}.test_set"
+        )
+
+        spark.sql(
+            f"ALTER TABLE {self.config.catalog_name}.{self.config.schema_name}.train_set "
+            "SET TBLPROPERTIES (delta.enableChangeDataFeed = true);"
+        )
+
+        spark.sql(
+            f"ALTER TABLE {self.config.catalog_name}.{self.config.schema_name}.test_set "
+            "SET TBLPROPERTIES (delta.enableChangeDataFeed = true);"
+        )
