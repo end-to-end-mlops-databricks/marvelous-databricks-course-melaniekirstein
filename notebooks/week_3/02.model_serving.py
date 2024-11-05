@@ -1,5 +1,5 @@
 # Databricks notebook source
-# MAGIC %pip install ../housing_price-0.0.1-py3-none-any.whl
+# MAGIC %pip install ../hotel_reservations-0.0.1-py3-none-any.whl
 
 # COMMAND ----------
 # MAGIC %restart_python
@@ -20,7 +20,7 @@ from databricks.sdk.service.serving import (
     Route,
 )
 
-from house_price.config import ProjectConfig
+from hotel_reservations.config import ProjectConfig
 from pyspark.sql import SparkSession
 
 workspace = WorkspaceClient()
@@ -34,11 +34,11 @@ schema_name = config.schema_name
 train_set = spark.table(f"{catalog_name}.{schema_name}.train_set").toPandas()
 
 workspace.serving_endpoints.create(
-    name="house-prices-model-serving",
+    name="hotel-reservations-mk-model-serving",
     config=EndpointCoreConfigInput(
         served_entities=[
             ServedEntityInput(
-                entity_name=f"{catalog_name}.{schema_name}.house_prices_model",
+                entity_name=f"{catalog_name}.{schema_name}.hotel_reservations_model_basic",
                 scale_to_zero_enabled=True,
                 workload_size="Small",
                 entity_version=2,
@@ -47,7 +47,7 @@ workspace.serving_endpoints.create(
     # Optional if only 1 entity is served
     traffic_config=TrafficConfig(
         routes=[
-            Route(served_model_name="house_prices_model-2",
+            Route(served_model_name="hotel_reservations_model_basic-2",
                   traffic_percentage=100)
         ]
         ),
@@ -72,34 +72,25 @@ host = spark.conf.get("spark.databricks.workspaceUrl")
 # COMMAND ----------
 
 required_columns = [
-    "LotFrontage",
-    "LotArea",
-    "OverallQual",
-    "OverallCond",
-    "YearBuilt",
-    "YearRemodAdd",
-    "MasVnrArea",
-    "TotalBsmtSF",
-    "GrLivArea",
-    "GarageCars",
-    "MSZoning",
-    "Street",
-    "Alley",
-    "LotShape",
-    "LandContour",
-    "Neighborhood",
-    "Condition1",
-    "BldgType",
-    "HouseStyle",
-    "RoofStyle",
-    "Exterior1st",
-    "Exterior2nd",
-    "MasVnrType",
-    "Foundation",
-    "Heating",
-    "CentralAir",
-    "SaleType",
-    "SaleCondition",
+    "no_of_adults",
+    "no_of_children",
+    "no_of_weekend_nights",
+    "no_of_week_nights",
+    "required_car_parking_space",
+    "lead_time",
+    "arrival_year",
+    "arrival_month",
+    "arrival_date",
+    "repeated_guest",
+    "no_of_previous_cancellations",
+    "no_of_previous_bookings_not_canceled",
+    "avg_price_per_room",
+    "no_of_special_requests",
+    "type_of_meal_plan",
+    "room_type_reserved",
+    "market_segment_type",
+    "booking_status",
+    "update_timestamp_utc"
 ]
 
 sampled_records = train_set[required_columns].sample(n=1000, replace=True).to_dict(orient="records")
@@ -129,7 +120,7 @@ Each body should be list of json with columns
 start_time = time.time()
 
 model_serving_endpoint = (
-    f"https://{host}/serving-endpoints/house-prices-model-serving/invocations"
+    f"https://{host}/serving-endpoints/hotel-reservations-mk-model-serving/invocations"
 )
 response = requests.post(
     f"{model_serving_endpoint}",
@@ -153,7 +144,7 @@ print("Execution time:", execution_time, "seconds")
 
 # Initialize variables
 model_serving_endpoint = (
-    f"https://{host}/serving-endpoints/house-prices-model-serving/invocations"
+    f"https://{host}/serving-endpoints/hotel-reservations-mk-model-serving/invocations"
 )
 
 headers = {"Authorization": f"Bearer {token}"}
