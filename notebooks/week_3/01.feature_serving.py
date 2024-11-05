@@ -1,5 +1,5 @@
 # Databricks notebook source
-# MAGIC %pip install ../housing_price-0.0.1-py3-none-any.whl
+# MAGIC %pip install ../hotel_reservations-0.0.1-py3-none-any.whl
 
 # COMMAND ----------
 
@@ -35,7 +35,7 @@ from databricks.sdk.service.catalog import (
 from databricks.sdk.service.serving import EndpointCoreConfigInput, ServedEntityInput
 from pyspark.sql import SparkSession
 
-from house_price.config import ProjectConfig
+from hotel_reservations.config import ProjectConfig
 
 spark = SparkSession.builder.getOrCreate()
 
@@ -64,8 +64,8 @@ catalog_name = config.catalog_name
 schema_name = config.schema_name
 
 # Define table names
-feature_table_name = f"{catalog_name}.{schema_name}.house_prices_preds"
-online_table_name = f"{catalog_name}.{schema_name}.house_prices_preds_online"
+feature_table_name = f"{catalog_name}.{schema_name}.hotel_reservations_preds"
+online_table_name = f"{catalog_name}.{schema_name}.hotel_reservations_preds_online"
 
 # Load training and test sets from Catalog
 train_set = spark.table(f"{catalog_name}.{schema_name}.train_set").toPandas()
@@ -81,20 +81,20 @@ df = pd.concat([train_set, test_set])
 # COMMAND ----------
 
 # Load the MLflow model for predictions
-pipeline = mlflow.sklearn.load_model(f"models:/{catalog_name}.{schema_name}.house_prices_model/2")
+pipeline = mlflow.sklearn.load_model(f"models:/{catalog_name}.{schema_name}.hotel_reservations_model_basic/4")
 
 # COMMAND ----------
 
 # Prepare the DataFrame for predictions and feature table creation - these features are the ones we want to serve.
-preds_df = df[["Id", "GrLivArea", "YearBuilt"]]
-preds_df["Predicted_SalePrice"] = pipeline.predict(df[cat_features + num_features])
+preds_df = df[["Booking_ID","lead_time","no_of_special_requests","avg_price_per_room"]]
+preds_df["Predicted_BookingStatus"] = pipeline.predict(df[cat_features + num_features])
 
 preds_df = spark.createDataFrame(preds_df)
 
 # 1. Create the feature table in Databricks
 
 fe.create_table(
-    name=feature_table_name, primary_keys=["Id"], df=preds_df, description="House Prices predictions feature table"
+    name=feature_table_name, primary_keys=["Booking_ID"], df=preds_df, description="Hotel Reservations predictions feature table"
 )
 
 # Enable Change Data Feed
@@ -108,7 +108,7 @@ spark.sql(f"""
 # 2. Create the online table using feature table
 
 spec = OnlineTableSpec(
-    primary_key_columns=["Id"],
+    primary_key_columns=["Booking_ID"],
     source_table_full_name=feature_table_name,
     run_triggered=OnlineTableSpecTriggeredSchedulingPolicy.from_dict({"triggered": "true"}),
     perform_full_copy=False,
@@ -123,7 +123,7 @@ online_table_pipeline = workspace.online_tables.create(name=online_table_name, s
 # Define features to look up from the feature table
 features = [
     FeatureLookup(
-        table_name=feature_table_name, lookup_key="Id", feature_names=["GrLivArea", "YearBuilt", "Predicted_SalePrice"]
+        table_name=feature_table_name, lookup_key="Booking_ID", feature_names=["lead_time","no_of_special_requests","avg_price_per_room"]
     )
 ]
 
@@ -142,7 +142,7 @@ fe.create_feature_spec(name=feature_spec_name, features=features, exclude_column
 
 # Create a serving endpoint for the house prices predictions
 workspace.serving_endpoints.create(
-    name="house-prices-feature-serving",
+    name="hotel-reservations-mk-feature-serving",
     config=EndpointCoreConfigInput(
         served_entities=[
             ServedEntityInput(
@@ -169,18 +169,18 @@ host = spark.conf.get("spark.databricks.workspaceUrl")
 
 # COMMAND ----------
 
-id_list = preds_df["Id"]
+id_list = preds_df["Booking_ID"]
 
 # COMMAND ----------
 
 # COMMAND ----------
 
 start_time = time.time()
-serving_endpoint = f"https://{host}/serving-endpoints/house-prices-feature-serving/invocations"
+serving_endpoint = f"https://{host}/serving-endpoints/hotel-reservations-mk-feature-serving/invocations"
 response = requests.post(
     f"{serving_endpoint}",
     headers={"Authorization": f"Bearer {token}"},
-    json={"dataframe_records": [{"Id": "182"}]},
+    json={"dataframe_records": [{"Booking_ID": "182"}]},
 )
 
 end_time = time.time()
@@ -197,16 +197,17 @@ print("Execution time:", execution_time, "seconds")
 response = requests.post(
     f"{serving_endpoint}",
     headers={"Authorization": f"Bearer {token}"},
-    json={"dataframe_split": {"columns": ["Id"], "data": [["182"]]}},
+    json={"dataframe_split": {"columns": ["Booking_ID"], "data": [["182"]]}},
 )
 
+# COMMAND ----------
 # MAGIC %md
 # MAGIC ## Load Test
 
 # COMMAND ----------
 # Initialize variables
-serving_endpoint = f"https://{host}/serving-endpoints/house-prices-feature-serving/invocations"
-id_list = preds_df.select("Id").rdd.flatMap(lambda x: x).collect()
+serving_endpoint = f"https://{host}/serving-endpoints/hotel-reservations-mk-feature-serving/invocations"
+id_list = preds_df.select("Booking_ID").rdd.flatMap(lambda x: x).collect()
 headers = {"Authorization": f"Bearer {token}"}
 num_requests = 10
 
@@ -218,7 +219,7 @@ def send_request():
     response = requests.post(
         serving_endpoint,
         headers=headers,
-        json={"dataframe_records": [{"Id": random_id}]},
+        json={"dataframe_records": [{"Booking_ID": random_id}]},
     )
     end_time = time.time()
     latency = end_time - start_time  # Calculate latency for this request
