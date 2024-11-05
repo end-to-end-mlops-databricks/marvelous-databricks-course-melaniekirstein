@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.hotel_reservations.data_processor import DataProcessor
+from hotel_reservations.data_processor import DataProcessor
 
 
 @pytest.fixture

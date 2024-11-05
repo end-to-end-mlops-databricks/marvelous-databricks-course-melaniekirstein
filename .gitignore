@@ -98,3 +98,15 @@ dmypy.json
 
 .databricks
 .ruff_cache/
+
+# JSON files
+*.json
+
+# MLFlow
+mlruns/
+
+# JSON files
+*.json
+
+# MLFlow
+mlruns/
