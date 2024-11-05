@@ -18,7 +18,7 @@ with open("mlflow_experiment.json", "w") as json_file:
 # COMMAND ----------
 with mlflow.start_run(
     run_name="demo-run",
-    tags={"git_sha": "50a9297454e49cbec3c6b681981b38f1485b3c10", "branch": "week2"},
+    tags={"git_sha": "71f8c100e9c90b43fb52c580468aa675c630454e", "branch": "week2"},
     description="demo run",
 ) as run:
     mlflow.log_params({"type": "demo"})
@@ -26,7 +26,7 @@ with mlflow.start_run(
 # COMMAND ----------
 run_id = mlflow.search_runs(
     experiment_names=["/Shared/hotel-reservations-mk"],
-    filter_string="tags.git_sha='50a9297454e49cbec3c6b681981b38f1485b3c10'",
+    filter_string="tags.git_sha='71f8c100e9c90b43fb52c580468aa675c630454e'",
 ).run_id[0]
 run_info = mlflow.get_run(run_id=f"{run_id}").to_dictionary()
 print(run_info)

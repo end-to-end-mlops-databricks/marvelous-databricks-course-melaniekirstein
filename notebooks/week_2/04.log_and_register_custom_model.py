@@ -87,7 +87,7 @@ print("Example Prediction:", example_prediction)
 # but does not work with pyspark, so we have a better option :-)
 
 mlflow.set_experiment(experiment_name="/Shared/hotel-reservations-mk-pyfunc")
-git_sha = "50a9297454e49cbec3c6b681981b38f1485b3c10"
+git_sha = "71f8c100e9c90b43fb52c580468aa675c630454e"
 
 with mlflow.start_run(tags={"branch": "week2", "git_sha": f"{git_sha}"}) as run:
     run_id = run.info.run_id

@@ -51,7 +51,7 @@ pipeline = Pipeline(steps=[("preprocessor", preprocessor), ("classifier", LGBMCl
 
 # COMMAND ----------
 mlflow.set_experiment(experiment_name="/Shared/hotel-reservations-mk")
-git_sha = "50a9297454e49cbec3c6b681981b38f1485b3c10"
+git_sha = "71f8c100e9c90b43fb52c580468aa675c630454e"
 
 # Start an MLflow run to track the training process
 with mlflow.start_run(
