@@ -1,4 +1,5 @@
 # Databricks notebook source
+
 # MAGIC #%pip install ../hotel_reservations-0.0.1-py3-none-any.whl
 
 # COMMAND ----------
@@ -8,8 +9,9 @@
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Create Online Table for house features
-# MAGIC We already created house_features table as feature look up table.
+# MAGIC ## Create Online Table for House Features
+# MAGIC This section demonstrates the creation of an online table to store the house features used in the model. 
+# MAGIC The `hotel_features` table has been created as a feature lookup table.
 
 # COMMAND ----------
 
@@ -34,10 +36,23 @@ workspace = WorkspaceClient()
 
 # COMMAND ----------
 
+# MAGIC %md
+# MAGIC ### 1. Load Configuration
+# MAGIC This loads the configuration details, such as catalog and schema names, from the project configuration file.
+
+# COMMAND ----------
+
 # Load config
 config = ProjectConfig.from_yaml(config_path="../../project_config.yml")
 catalog_name = config.catalog_name
 schema_name = config.schema_name
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### 2. Create Online Table
+# MAGIC We create an online table for `hotel_reservation_features_online` using the source `hotel_features`. 
+# MAGIC The table will have a primary key of `booking_id`.
 
 # COMMAND ----------
 
@@ -53,16 +68,9 @@ online_table_pipeline = workspace.online_tables.create(name=online_table_name, s
 
 # COMMAND ----------
 
-
-# config = ProjectConfig.from_yaml(config_path="/Volumes/mlops_dev/house_prices/data/project_config.yml")
-
-# catalog_name = config.catalog_name
-# schema_name = config.schema_name
-
-# COMMAND ----------
-
 # MAGIC %md
-# MAGIC ### Create endpoint
+# MAGIC ### 3. Create Endpoint for Model Serving with Feature Lookup
+# MAGIC This section demonstrates creating an endpoint to serve the model, incorporating the feature lookup table.
 
 # COMMAND ----------
 
@@ -83,16 +91,25 @@ workspace.serving_endpoints.create(
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### Call the endpoint
+# MAGIC ### 4. Call the Endpoint
+# MAGIC This section demonstrates how to call the model endpoint to make predictions, including the use of the feature lookup table.
 
 # COMMAND ----------
+
 dbutils = DBUtils(spark)
 token = dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiToken().get()
 host = spark.conf.get("spark.databricks.workspaceUrl")
 
 # COMMAND ----------
 
-# Excluding "OverallQual", "GrLivArea", "GarageCars" because they will be taken from feature look up
+# MAGIC %md
+# MAGIC #### 4.1 Prepare Sample Request Data
+# MAGIC Here, we sample records from the training set and create the request body to call the model endpoint. 
+# MAGIC Certain columns like "OverallQual", "GrLivArea", and "GarageCars" will be retrieved from the feature lookup.
+
+# COMMAND ----------
+
+# Excluding "OverallQual", "GrLivArea", "GarageCars" because they will be taken from feature lookup
 required_columns = [
     "no_of_adults",
     "no_of_children",
@@ -128,6 +145,13 @@ train_set.dtypes
 dataframe_records[0]
 
 # COMMAND ----------
+
+# MAGIC %md
+# MAGIC #### 4.2 Call the Model Endpoint for Prediction
+# MAGIC In this step, we make a request to the model serving endpoint with the sampled data.
+
+# COMMAND ----------
+
 start_time = time.time()
 
 model_serving_endpoint = f"https://{host}/serving-endpoints/hotel-reservations-mk-model-serving-fe/invocations"
@@ -144,6 +168,12 @@ execution_time = end_time - start_time
 print("Response status:", response.status_code)
 print("Reponse text:", response.text)
 print("Execution time:", execution_time, "seconds")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### 5. Load the Feature Lookup Table
+# MAGIC We load the `hotel_features` table, which is used for feature lookup.
 
 # COMMAND ----------
 

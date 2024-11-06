@@ -1,9 +1,23 @@
 # Databricks notebook source
+
 # MAGIC #%pip install ../hotel_reservations-0.0.1-py3-none-any.whl
 
 # COMMAND ----------
 
 # dbutils.library.restartPython()
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC # Feature Serving Setup
+
+# MAGIC %md
+# MAGIC ## 1. Overview
+# MAGIC This notebook demonstrates the following steps:
+# MAGIC 1. Create a feature table in Unity Catalog (as a Delta table).
+# MAGIC 2. Create an online table using the feature Delta table.
+# MAGIC 3. Create a feature spec to be used in both offline and online scenarios.
+# MAGIC 4. Deploy a feature serving endpoint for low-latency predictions.
 
 # COMMAND ----------
 
@@ -15,7 +29,6 @@ you specify the source Delta table.
 This allows the feature spec to be used in both offline and online scenarios.
 For online lookups, the serving endpoint automatically uses the online table to perform low-latency feature lookups.
 The source Delta table and the online table must use the same primary key.
-
 """
 
 import random
@@ -50,7 +63,14 @@ mlflow.set_registry_uri("databricks-uc")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Load config, train and test tables
+# MAGIC ## 2. Initialize Libraries and Configuration
+# MAGIC We import required libraries and initialize configurations, including MLflow, Spark, and Databricks clients.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## 3. Load Configurations and Data
+# MAGIC We load the configuration for the project, including the feature and target columns. We also load training and test datasets from the catalog.
 
 # COMMAND ----------
 
@@ -77,12 +97,19 @@ df = pd.concat([train_set, test_set])
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Load a registered model
+# MAGIC ## 4. Load a Registered Model
+# MAGIC In this step, we load a registered MLflow model to be used for making predictions.
 
 # COMMAND ----------
 
 # Load the MLflow model for predictions
 pipeline = mlflow.sklearn.load_model(f"models:/{catalog_name}.{schema_name}.hotel_reservations_model_basic/4")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## 5. Prepare DataFrame for Feature Table
+# MAGIC We prepare a DataFrame containing the features needed for predictions and then create a feature table.
 
 # COMMAND ----------
 
@@ -109,6 +136,12 @@ spark.sql(f"""
 
 # COMMAND ----------
 
+# MAGIC %md
+# MAGIC ## 6. Create Online Table
+# MAGIC In this step, we create an online table that uses the feature table created earlier.
+
+# COMMAND ----------
+
 # 2. Create the online table using feature table
 
 spec = OnlineTableSpec(
@@ -122,6 +155,13 @@ spec = OnlineTableSpec(
 online_table_pipeline = workspace.online_tables.create(name=online_table_name, spec=spec)
 
 # COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## 7. Create Feature Lookup and Feature Spec
+# MAGIC We define the features to look up from the feature table and create the feature specification for serving.
+
+# COMMAND ----------
+
 # 3. Create feture look up and feature spec table feature table
 
 # Define features to look up from the feature table
@@ -141,9 +181,11 @@ fe.create_feature_spec(name=feature_spec_name, features=features, exclude_column
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Deploy Feature Serving Endpoint
+# MAGIC ## 8. Deploy Feature Serving Endpoint
+# MAGIC We deploy a feature serving endpoint using the feature specification.
 
 # COMMAND ----------
+
 # 4. Create endpoing using feature spec
 
 # Create a serving endpoint for the house prices predictions
@@ -163,10 +205,8 @@ workspace.serving_endpoints.create(
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Call The Endpoint
-
-# COMMAND ----------
-
+# MAGIC ## 9. Call the Endpoint
+# MAGIC We make a sample request to the feature serving endpoint to validate the setup.
 
 # COMMAND ----------
 
@@ -174,13 +214,7 @@ dbutils = DBUtils(spark)
 token = dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiToken().get()
 host = spark.conf.get("spark.databricks.workspaceUrl")
 
-# COMMAND ----------
-
 id_list = preds_df["booking_id"]
-
-# COMMAND ----------
-
-# COMMAND ----------
 
 start_time = time.time()
 serving_endpoint = f"https://{host}/serving-endpoints/hotel-reservations-mk-feature-serving/invocations"

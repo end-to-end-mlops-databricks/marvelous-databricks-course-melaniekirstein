@@ -1,10 +1,28 @@
 # Databricks notebook source
-# MAGIC #%pip install ../hotel_reservations-0.0.1-py3-none-any.whl
+
+# MAGIC %md
+# MAGIC # A/B testing approach
+# MAGIC **Notebook**: 04.AB_test_model_serving.py
+# MAGIC 
+# MAGIC This notebook demonstrates an A/B testing approach to train two models using LightGBM, log them with MLflow, register them, and create a custom serving endpoint to serve predictions.
+# MAGIC 
+# MAGIC Overview:
+# MAGIC 1. Set up MLflow for tracking and model registry.
+# MAGIC 2. Load and prepare datasets.
+# MAGIC 3. Train Model A and log it with MLflow.
+# MAGIC 4. Register Model A and assign an alias.
+# MAGIC 5. Train Model B and log it with MLflow.
+# MAGIC 6. Register Model B and assign an alias.
+# MAGIC 7. Define a custom A/B test model that selects the model based on a hashed booking ID.
+# MAGIC 8. Create a serving endpoint for real-time model predictions.
+# MAGIC 9. Call the endpoint and measure execution time.
 
 # COMMAND ----------
-# dbutils.library.restartPython()
+# MAGIC %md
+# MAGIC ## 1. Set up MLflow for tracking and model registry
 
 # COMMAND ----------
+# Set up MLflow for tracking and model registry
 import time
 import mlflow
 import pandas as pd
@@ -21,7 +39,6 @@ from sklearn.preprocessing import OneHotEncoder
 import hashlib
 import requests
 from pyspark.dbutils import DBUtils
-
 from hotel_reservations.config import ProjectConfig
 
 # Set up MLflow for tracking and model registry
@@ -44,21 +61,10 @@ ab_test_params = config.ab_test
 
 # COMMAND ----------
 # Set up specific parameters for model A and model B as part of the A/B test
-parameters_a = {
-    "learning_rate": ab_test_params["learning_rate_a"],
-    "n_estimators": ab_test_params["n_estimators_a"],
-    "max_depth": ab_test_params["max_depth_a"],
-}
-
-parameters_b = {
-    "learning_rate": ab_test_params["learning_rate_b"],
-    "n_estimators": ab_test_params["n_estimators_b"],
-    "max_depth": ab_test_params["max_depth_b"],
-}
 
 # COMMAND ----------
 # MAGIC %md
-# MAGIC ## Load and Prepare Training and Testing Datasets
+# MAGIC ## 2. Load and Prepare Training and Testing Datasets
 
 # COMMAND ----------
 # Initialize a Databricks session for Spark operations
@@ -77,9 +83,16 @@ y_test = test_set[target]
 
 # COMMAND ----------
 # MAGIC %md
-# MAGIC ## Train Model A and Log with MLflow
+# MAGIC ## 3. Train Model A and Log with MLflow
 
 # COMMAND ----------
+# Set up specific parameters for model A as part of the A/B test
+parameters_a = {
+    "learning_rate": ab_test_params["learning_rate_a"],
+    "n_estimators": ab_test_params["n_estimators_a"],
+    "max_depth": ab_test_params["max_depth_a"],
+}
+
 # Define a preprocessor for categorical features, which will one-hot encode categorical variables
 preprocessor = ColumnTransformer(
     transformers=[("cat", OneHotEncoder(handle_unknown="ignore"), cat_features)], remainder="passthrough"
@@ -127,7 +140,7 @@ model_version = mlflow.register_model(
 
 # COMMAND ----------
 # MAGIC %md
-# MAGIC ## Register Model A and Assign Alias
+# MAGIC ## 4. Register Model A and Assign Alias
 
 # COMMAND ----------
 # Assign alias for easy reference in future A/B tests
@@ -139,9 +152,16 @@ model_A = mlflow.sklearn.load_model(model_uri)
 
 # COMMAND ----------
 # MAGIC %md
-# MAGIC ## Train Model B and Log with MLflow
+# MAGIC ## 5. Train Model B and Log with MLflow
 
 # COMMAND ----------
+# Set up specific parameters for model B as part of the A/B test
+parameters_b = {
+    "learning_rate": ab_test_params["learning_rate_b"],
+    "n_estimators": ab_test_params["n_estimators_b"],
+    "max_depth": ab_test_params["max_depth_b"],
+}
+
 # Repeat the training and logging steps for Model B using parameters for B
 pipeline = Pipeline(steps=[("preprocessor", preprocessor), ("classifier", LGBMClassifier(**parameters_b))])
 
@@ -171,7 +191,7 @@ model_version = mlflow.register_model(
 
 # COMMAND ----------
 # MAGIC %md
-# MAGIC ## Register Model B and Assign Alias
+# MAGIC ## 6. Register Model B and Assign Alias
 
 # COMMAND ----------
 # Assign alias for Model B
@@ -183,10 +203,10 @@ model_B = mlflow.sklearn.load_model(model_uri)
 
 # COMMAND ----------
 # MAGIC %md
-# MAGIC ## Define Custom A/B Test Model
-
+# MAGIC ## 7. Define Custom A/B Test Model
 
 # COMMAND ----------
+# Define a custom A/B test model that selects the model based on hashed booking ID
 class HotelReservationModelWrapper(mlflow.pyfunc.PythonModel):
     def __init__(self, models):
         self.models = models

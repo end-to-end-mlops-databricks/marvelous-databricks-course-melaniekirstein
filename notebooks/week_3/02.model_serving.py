@@ -1,9 +1,22 @@
 # Databricks notebook source
+
 # MAGIC #%pip install ../hotel_reservations-0.0.1-py3-none-any.whl
 
 # COMMAND ----------
 
 # dbutils.library.restartPython()
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC # Model Serving Setup
+
+# MAGIC %md
+# MAGIC ## 1. Overview
+# MAGIC This notebook demonstrates the following steps:
+# MAGIC 1. Deploy a model serving endpoint for low-latency predictions using a trained model.
+# MAGIC 2. Call the model serving endpoint to make sample predictions.
+# MAGIC 3. Perform a load test to evaluate the endpoint performance.
 
 # COMMAND ----------
 
@@ -35,6 +48,14 @@ schema_name = config.schema_name
 
 train_set = spark.table(f"{catalog_name}.{schema_name}.train_set").toPandas()
 
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## 2. Deploy Model Serving Endpoint
+# MAGIC Here, we deploy a model serving endpoint for the `hotel_reservations_model_basic`.
+
+# COMMAND ----------
+
 workspace.serving_endpoints.create(
     name="hotel-reservations-mk-model-serving",
     config=EndpointCoreConfigInput(
@@ -56,9 +77,11 @@ workspace.serving_endpoints.create(
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Call the endpoint
+# MAGIC ## 3. Call the Endpoint
+# MAGIC In this section, we call the newly deployed endpoint with sample data to ensure it's working.
 
 # COMMAND ----------
+
 dbutils = DBUtils(spark)
 token = dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiToken().get()
 host = spark.conf.get("spark.databricks.workspaceUrl")
@@ -66,7 +89,8 @@ host = spark.conf.get("spark.databricks.workspaceUrl")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### Create sample request body
+# MAGIC ### 3.1 Create Sample Request Body
+# MAGIC Here, we sample records from the training set to create the request body for calling the model endpoint.
 
 # COMMAND ----------
 
@@ -114,6 +138,7 @@ Each body should be list of json with columns
 """
 
 # COMMAND ----------
+
 start_time = time.time()
 
 model_serving_endpoint = f"https://{host}/serving-endpoints/hotel-reservations-mk-model-serving/invocations"
@@ -133,7 +158,8 @@ print("Execution time:", execution_time, "seconds")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Load Test
+# MAGIC ## 4. Load Test
+# MAGIC We send multiple concurrent requests to the endpoint to measure latency and evaluate performance.
 
 # COMMAND ----------
 
