@@ -1,8 +1,9 @@
 # Databricks notebook source
-# MAGIC %pip install ../hotel_reservations-0.0.1-py3-none-any.whl
+# MAGIC #%pip install ../hotel_reservations-0.0.1-py3-none-any.whl
 
 # COMMAND ----------
-# MAGIC %restart_python
+
+# dbutils.library.restartPython() 
 
 # COMMAND ----------
 
@@ -88,9 +89,7 @@ required_columns = [
     "no_of_special_requests",
     "type_of_meal_plan",
     "room_type_reserved",
-    "market_segment_type",
-    "booking_status",
-    "update_timestamp_utc"
+    "market_segment_type"
 ]
 
 sampled_records = train_set[required_columns].sample(n=1000, replace=True).to_dict(orient="records")
