@@ -1,28 +1,27 @@
 # Databricks notebook source
-# MAGIC %pip install ../housing_price-0.0.1-py3-none-any.whl
+# MAGIC #%pip install ../hotel_reservations-0.0.1-py3-none-any.whl
 
 # COMMAND ----------
-# MAGIC %restart_python
+# dbutils.library.restartPython()
 
 # COMMAND ----------
 import time
-
 import mlflow
 import pandas as pd
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.serving import EndpointCoreConfigInput, ServedEntityInput
-from lightgbm import LGBMRegressor
+from lightgbm import LGBMClassifier
 from mlflow import MlflowClient
 from mlflow.models import infer_signature
 from pyspark.sql import SparkSession
 from sklearn.compose import ColumnTransformer
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.metrics import accuracy_score, log_loss
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
 import hashlib
 import requests
 
-from house_price.config import ProjectConfig
+from hotel_reservations.config import ProjectConfig 
 
 # Set up MLflow for tracking and model registry
 mlflow.set_tracking_uri("databricks")
@@ -43,27 +42,24 @@ schema_name = config.schema_name
 ab_test_params = config.ab_test
 
 # COMMAND ----------
-
 # Set up specific parameters for model A and model B as part of the A/B test
 parameters_a = {
     "learning_rate": ab_test_params["learning_rate_a"],
-    "n_estimators": ab_test_params["n_estimators"],
+    "n_estimators": ab_test_params["n_estimators_a"],
     "max_depth": ab_test_params["max_depth_a"],
 }
 
 parameters_b = {
     "learning_rate": ab_test_params["learning_rate_b"],
-    "n_estimators": ab_test_params["n_estimators"],
+    "n_estimators": ab_test_params["n_estimators_b"],
     "max_depth": ab_test_params["max_depth_b"],
 }
 
 # COMMAND ----------
-
 # MAGIC %md
 # MAGIC ## Load and Prepare Training and Testing Datasets
 
 # COMMAND ----------
-
 # Initialize a Databricks session for Spark operations
 spark = SparkSession.builder.getOrCreate()
 
@@ -79,26 +75,24 @@ X_test = test_set[num_features + cat_features]
 y_test = test_set[target]
 
 # COMMAND ----------
-
 # MAGIC %md
 # MAGIC ## Train Model A and Log with MLflow
 
 # COMMAND ----------
-
 # Define a preprocessor for categorical features, which will one-hot encode categorical variables
 preprocessor = ColumnTransformer(
     transformers=[("cat", OneHotEncoder(handle_unknown="ignore"), cat_features)], remainder="passthrough"
 )
 
 # Build a pipeline combining preprocessing and model training steps
-pipeline = Pipeline(steps=[("preprocessor", preprocessor), ("regressor", LGBMRegressor(**parameters_a))])
+pipeline = Pipeline(steps=[("preprocessor", preprocessor), ("classifier", LGBMClassifier(**parameters_a))])
 
 # Set the MLflow experiment to track this A/B testing project
-mlflow.set_experiment(experiment_name="/Shared/house-prices-ab")
-model_name = f"{catalog_name}.{schema_name}.house_prices_model_ab"
+mlflow.set_experiment(experiment_name="/Shared/hotel-reservations-mk-ab")
+model_name = f"{catalog_name}.{schema_name}.hotel_reservations_model_ab"
 
 # Git commit hash for tracking model version
-git_sha = "ffa63b430205ff7"
+git_sha = "71f8c100e9c90b43fb52c580468aa675c630454e"
 
 # Start MLflow run to track training of Model A
 with mlflow.start_run(tags={"model_class": "A", "git_sha": git_sha}) as run:
@@ -109,16 +103,14 @@ with mlflow.start_run(tags={"model_class": "A", "git_sha": git_sha}) as run:
     y_pred = pipeline.predict(X_test)
 
     # Calculate performance metrics
-    mse = mean_squared_error(y_test, y_pred)
-    mae = mean_absolute_error(y_test, y_pred)
-    r2 = r2_score(y_test, y_pred)
+    accuracy = accuracy_score(y_test, y_pred)
+    log_loss_value = log_loss(y_test, pipeline.predict_proba(X_test))
 
     # Log model parameters, metrics, and other artifacts in MLflow
     mlflow.log_param("model_type", "LightGBM with preprocessing")
     mlflow.log_params(parameters_a)
-    mlflow.log_metric("mse", mse)
-    mlflow.log_metric("mae", mae)
-    mlflow.log_metric("r2_score", r2)
+    mlflow.log_metric("accuracy", accuracy)
+    mlflow.log_metric("log_loss", log_loss_value)
     signature = infer_signature(model_input=X_train, model_output=y_pred)
 
     # Log the input dataset for tracking reproducibility
@@ -135,12 +127,10 @@ model_version = mlflow.register_model(
 )
 
 # COMMAND ----------
-
 # MAGIC %md
 # MAGIC ## Register Model A and Assign Alias
 
 # COMMAND ----------
-
 # Assign alias for easy reference in future A/B tests
 model_version_alias = "model_A"
 
@@ -149,14 +139,12 @@ model_uri = f"models:/{model_name}@{model_version_alias}"
 model_A = mlflow.sklearn.load_model(model_uri)
 
 # COMMAND ----------
-
 # MAGIC %md
 # MAGIC ## Train Model B and Log with MLflow
 
 # COMMAND ----------
-
 # Repeat the training and logging steps for Model B using parameters for B
-pipeline = Pipeline(steps=[("preprocessor", preprocessor), ("regressor", LGBMRegressor(**parameters_b))])
+pipeline = Pipeline(steps=[("preprocessor", preprocessor), ("classifier", LGBMClassifier(**parameters_b))])
 
 # Start MLflow run for Model B
 with mlflow.start_run(tags={"model_class": "B", "git_sha": git_sha}) as run:
@@ -165,15 +153,13 @@ with mlflow.start_run(tags={"model_class": "B", "git_sha": git_sha}) as run:
     pipeline.fit(X_train, y_train)
     y_pred = pipeline.predict(X_test)
 
-    mse = mean_squared_error(y_test, y_pred)
-    mae = mean_absolute_error(y_test, y_pred)
-    r2 = r2_score(y_test, y_pred)
+    accuracy = accuracy_score(y_test, y_pred)
+    log_loss_value = log_loss(y_test, pipeline.predict_proba(X_test))
 
     mlflow.log_param("model_type", "LightGBM with preprocessing")
     mlflow.log_params(parameters_b)
-    mlflow.log_metric("mse", mse)
-    mlflow.log_metric("mae", mae)
-    mlflow.log_metric("r2_score", r2)
+    mlflow.log_metric("accuracy", accuracy)
+    mlflow.log_metric("log_loss", log_loss_value)
     signature = infer_signature(model_input=X_train, model_output=y_pred)
 
     dataset = mlflow.data.from_spark(train_set_spark,
@@ -186,12 +172,10 @@ model_version = mlflow.register_model(
 )
 
 # COMMAND ----------
-
 # MAGIC %md
 # MAGIC ## Register Model B and Assign Alias
 
 # COMMAND ----------
-
 # Assign alias for Model B
 model_version_alias = "model_B"
 
@@ -200,42 +184,47 @@ model_uri = f"models:/{model_name}@{model_version_alias}"
 model_B = mlflow.sklearn.load_model(model_uri)
 
 # COMMAND ----------
-
 # MAGIC %md
 # MAGIC ## Define Custom A/B Test Model
 
 # COMMAND ----------
-
-
-class HousePriceModelWrapper(mlflow.pyfunc.PythonModel):
+class HotelReservationModelWrapper(mlflow.pyfunc.PythonModel):
     def __init__(self, models):
         self.models = models
         self.model_a = models[0]
         self.model_b = models[1]
 
     def predict(self, context, model_input):
-        if isinstance(model_input, pd.DataFrame):
-            house_id = str(model_input["Id"].values[0])
-            hashed_id = hashlib.md5(house_id.encode(encoding="UTF-8")).hexdigest()
-            # convert a hexadecimal (base-16) string into an integer
-            if int(hashed_id, 16) % 2:
-                predictions = self.model_a.predict(model_input.drop(["Id"], axis=1))
-                return {"Prediction": predictions[0], "model": "Model A"}
-            else:
-                predictions = self.model_b.predict(model_input.drop(["Id"], axis=1))
-                return {"Prediction": predictions[0], "model": "Model B"}
-        else:
+        # Ensure model_input is a DataFrame and contains booking_id
+        if not isinstance(model_input, pd.DataFrame):
             raise ValueError("Input must be a pandas DataFrame.")
+
+        if "booking_id" not in model_input.columns:
+            raise ValueError("The input DataFrame must contain a 'booking_id' column.")
+
+        reservation_id = str(model_input["booking_id"].values[0])
+        if not reservation_id:
+            raise ValueError("The 'booking_id' value is missing.")
+
+        hashed_id = hashlib.md5(reservation_id.encode(encoding="UTF-8")).hexdigest()
+        
+        # Determine which model to use based on hashed_id
+        if int(hashed_id, 16) % 2 == 0:
+            predictions = self.model_a.predict(model_input.drop(["booking_id"], axis=1))
+            return {"Prediction": predictions[0], "model": "Model A"}
+        else:
+            predictions = self.model_b.predict(model_input.drop(["booking_id"], axis=1))
+            return {"Prediction": predictions[0], "model": "Model B"}
 
 
 # COMMAND ----------
-X_train = train_set[num_features + cat_features + ["Id"]]
-X_test = test_set[num_features + cat_features + ["Id"]]
+X_train = train_set[num_features + cat_features + ["booking_id"]]
+X_test = test_set[num_features + cat_features + ["booking_id"]]
 
 
 # COMMAND ----------
 models = [model_A, model_B]
-wrapped_model = HousePriceModelWrapper(models)  # we pass the loaded models to the wrapper
+wrapped_model = HotelReservationModelWrapper(models)  # pass loaded models to the wrapper
 example_input = X_test.iloc[0:1]  # Select the first row for prediction as example
 example_prediction = wrapped_model.predict(
     context=None,
@@ -243,13 +232,13 @@ example_prediction = wrapped_model.predict(
 print("Example Prediction:", example_prediction)
 
 # COMMAND ----------
-mlflow.set_experiment(experiment_name="/Shared/house-prices-ab-testing")
-model_name = f"{catalog_name}.{schema_name}.house_prices_model_pyfunc_ab_test"
+mlflow.set_experiment(experiment_name="/Shared/hotel-reservations-mk-ab-testing")
+model_name = f"{catalog_name}.{schema_name}.hotel_reservations_model_pyfunc_ab_test"
 
 with mlflow.start_run() as run:
     run_id = run.info.run_id
     signature = infer_signature(model_input=X_train,
-                                model_output={"Prediction": 1234.5,
+                                model_output={"Prediction": 1,
                                               "model": "Model B"})
     dataset = mlflow.data.from_spark(train_set_spark,
                                      table_name=f"{catalog_name}.{schema_name}.train_set",
@@ -257,15 +246,14 @@ with mlflow.start_run() as run:
     mlflow.log_input(dataset, context="training")
     mlflow.pyfunc.log_model(
         python_model=wrapped_model,
-        artifact_path="pyfunc-house-price-model-ab",
+        artifact_path="pyfunc-hotel-reservations-model-ab",                  
         signature=signature
     )
 model_version = mlflow.register_model(
-    model_uri=f"runs:/{run_id}/pyfunc-house-price-model-ab",
+    model_uri=f"runs:/{run_id}/pyfunc-hotel-reservations-model-ab",
     name=model_name,
     tags={"git_sha": f"{git_sha}"}
 )
-
 # COMMAND ----------
 model = mlflow.pyfunc.load_model(model_uri=f"models:/{model_name}/{model_version.version}")
 
@@ -285,14 +273,14 @@ predictions
 workspace = WorkspaceClient()
 
 workspace.serving_endpoints.create(
-    name="house-prices-model-serving-ab-test",
+    name="hotel-reservations-mk-model-serving-ab-test",
     config=EndpointCoreConfigInput(
         served_entities=[
             ServedEntityInput(
-                entity_name=f"{catalog_name}.{schema_name}.house_prices_model_pyfunc_ab_test",
+                entity_name=f"{catalog_name}.{schema_name}.hotel_reservations_model_pyfunc_ab_test",
                 scale_to_zero_enabled=True,
                 workload_size="Small",
-                entity_version=model_version,
+                entity_version=1,
             )
         ]
     ),
@@ -311,35 +299,24 @@ host = spark.conf.get("spark.databricks.workspaceUrl")
 # COMMAND ----------
 
 required_columns = [
-    "LotFrontage",
-    "LotArea",
-    "OverallQual",
-    "OverallCond",
-    "YearBuilt",
-    "YearRemodAdd",
-    "MasVnrArea",
-    "TotalBsmtSF",
-    "GrLivArea",
-    "GarageCars",
-    "MSZoning",
-    "Street",
-    "Alley",
-    "LotShape",
-    "LandContour",
-    "Neighborhood",
-    "Condition1",
-    "BldgType",
-    "HouseStyle",
-    "RoofStyle",
-    "Exterior1st",
-    "Exterior2nd",
-    "MasVnrType",
-    "Foundation",
-    "Heating",
-    "CentralAir",
-    "SaleType",
-    "SaleCondition",
-    "Id",
+    "no_of_adults",
+    "no_of_children",
+    "no_of_weekend_nights",
+    "no_of_week_nights",
+    "required_car_parking_space",
+    "lead_time",
+    "arrival_year",
+    "arrival_month",
+    "arrival_date",
+    "repeated_guest",
+    "no_of_previous_cancellations",
+    "no_of_previous_bookings_not_canceled",
+    "avg_price_per_room",
+    "no_of_special_requests",
+    "type_of_meal_plan",
+    "room_type_reserved",
+    "market_segment_type",
+    "booking_id"
 ]
 
 train_set = spark.table(f"{catalog_name}.{schema_name}.train_set").toPandas()
@@ -351,7 +328,7 @@ dataframe_records = [[record] for record in sampled_records]
 start_time = time.time()
 
 model_serving_endpoint = (
-    f"https://{host}/serving-endpoints/house-prices-model-serving-ab-test/invocations"
+    f"https://{host}/serving-endpoints/hotel-reservations-model-serving-ab-test/invocations"
 )
 
 response = requests.post(
@@ -366,3 +343,4 @@ execution_time = end_time - start_time
 print("Response status:", response.status_code)
 print("Reponse text:", response.text)
 print("Execution time:", execution_time, "seconds")
+

@@ -1,6 +1,6 @@
 [project]
 name = "hotel_reservations"
-version = "0.0.1"
+version = "0.0.2"
 description = "MLOps with Databricks"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -9,10 +9,10 @@ dependencies = [
     "scikit-learn>=1.5.1, <2",
     "cloudpickle==3.1.0",
     "mlflow==2.17.0",
-    "numpy<1.24",  # Downgraded to meet ydata-profiling requirement
+    "numpy==1.23.5",  # Downgraded to meet ydata-profiling requirement
     "pandas<2.1",  # Downgraded to meet ydata-profiling requirement
     "psutil==6.0.0",
-    "pyarrow>=15.0.2, <16",
+    "pyarrow==14.0.1",
     "cffi>=1.17.1, <2",
     "scipy<1.12",  # Downgraded to meet ydata-profiling requirement
     "matplotlib>=3.9.2, <4",
