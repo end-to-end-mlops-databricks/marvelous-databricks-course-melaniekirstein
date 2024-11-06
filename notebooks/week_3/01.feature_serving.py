@@ -36,6 +36,7 @@ from databricks.sdk.service.serving import EndpointCoreConfigInput, ServedEntity
 from pyspark.sql import SparkSession
 
 from hotel_reservations.config import ProjectConfig
+from pyspark.dbutils import DBUtils
 
 spark = SparkSession.builder.getOrCreate()
 
@@ -86,7 +87,7 @@ pipeline = mlflow.sklearn.load_model(f"models:/{catalog_name}.{schema_name}.hote
 # COMMAND ----------
 
 # Prepare the DataFrame for predictions and feature table creation - these features are the ones we want to serve.
-preds_df = df[["booking_id","lead_time","no_of_special_requests","avg_price_per_room"]]
+preds_df = df[["booking_id", "lead_time", "no_of_special_requests", "avg_price_per_room"]]
 preds_df["Predicted_BookingStatus"] = pipeline.predict(df[cat_features + num_features])
 
 preds_df = spark.createDataFrame(preds_df)
@@ -94,7 +95,10 @@ preds_df = spark.createDataFrame(preds_df)
 # 1. Create the feature table in Databricks
 
 fe.create_table(
-    name=feature_table_name, primary_keys=["booking_id"], df=preds_df, description="Hotel Reservations predictions feature table"
+    name=feature_table_name,
+    primary_keys=["booking_id"],
+    df=preds_df,
+    description="Hotel Reservations predictions feature table",
 )
 
 # Enable Change Data Feed
@@ -123,7 +127,9 @@ online_table_pipeline = workspace.online_tables.create(name=online_table_name, s
 # Define features to look up from the feature table
 features = [
     FeatureLookup(
-        table_name=feature_table_name, lookup_key="booking_id", feature_names=["lead_time","no_of_special_requests","avg_price_per_room"]
+        table_name=feature_table_name,
+        lookup_key="booking_id",
+        feature_names=["lead_time", "no_of_special_requests", "avg_price_per_room"],
     )
 ]
 
@@ -164,6 +170,7 @@ workspace.serving_endpoints.create(
 
 # COMMAND ----------
 
+dbutils = DBUtils(spark)
 token = dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiToken().get()
 host = spark.conf.get("spark.databricks.workspaceUrl")
 

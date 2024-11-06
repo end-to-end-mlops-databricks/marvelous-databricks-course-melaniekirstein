@@ -3,7 +3,7 @@
 
 # COMMAND ----------
 
-# dbutils.library.restartPython() 
+# dbutils.library.restartPython()
 
 # COMMAND ----------
 
@@ -23,6 +23,7 @@ from databricks.sdk.service.serving import (
 
 from hotel_reservations.config import ProjectConfig
 from pyspark.sql import SparkSession
+from pyspark.dbutils import DBUtils
 
 workspace = WorkspaceClient()
 spark = SparkSession.builder.getOrCreate()
@@ -45,12 +46,9 @@ workspace.serving_endpoints.create(
                 entity_version=2,
             )
         ],
-    # Optional if only 1 entity is served
-    traffic_config=TrafficConfig(
-        routes=[
-            Route(served_model_name="hotel_reservations_model_basic-2",
-                  traffic_percentage=100)
-        ]
+        # Optional if only 1 entity is served
+        traffic_config=TrafficConfig(
+            routes=[Route(served_model_name="hotel_reservations_model_basic-2", traffic_percentage=100)]
         ),
     ),
 )
@@ -61,7 +59,7 @@ workspace.serving_endpoints.create(
 # MAGIC ## Call the endpoint
 
 # COMMAND ----------
-
+dbutils = DBUtils(spark)
 token = dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiToken().get()
 host = spark.conf.get("spark.databricks.workspaceUrl")
 
@@ -89,7 +87,7 @@ required_columns = [
     "no_of_special_requests",
     "type_of_meal_plan",
     "room_type_reserved",
-    "market_segment_type"
+    "market_segment_type",
 ]
 
 sampled_records = train_set[required_columns].sample(n=1000, replace=True).to_dict(orient="records")
@@ -118,9 +116,7 @@ Each body should be list of json with columns
 # COMMAND ----------
 start_time = time.time()
 
-model_serving_endpoint = (
-    f"https://{host}/serving-endpoints/hotel-reservations-mk-model-serving/invocations"
-)
+model_serving_endpoint = f"https://{host}/serving-endpoints/hotel-reservations-mk-model-serving/invocations"
 response = requests.post(
     f"{model_serving_endpoint}",
     headers={"Authorization": f"Bearer {token}"},
@@ -142,9 +138,7 @@ print("Execution time:", execution_time, "seconds")
 # COMMAND ----------
 
 # Initialize variables
-model_serving_endpoint = (
-    f"https://{host}/serving-endpoints/hotel-reservations-mk-model-serving/invocations"
-)
+model_serving_endpoint = f"https://{host}/serving-endpoints/hotel-reservations-mk-model-serving/invocations"
 
 headers = {"Authorization": f"Bearer {token}"}
 num_requests = 1000
@@ -183,4 +177,3 @@ average_latency = sum(latencies) / len(latencies)
 
 print("\nTotal execution time:", total_execution_time, "seconds")
 print("Average latency per request:", average_latency, "seconds")
-

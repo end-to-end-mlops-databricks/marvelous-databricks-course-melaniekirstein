@@ -25,6 +25,7 @@ from databricks.sdk.service.serving import EndpointCoreConfigInput, ServedEntity
 from pyspark.sql import SparkSession
 
 from hotel_reservations.config import ProjectConfig
+from pyspark.dbutils import DBUtils
 
 spark = SparkSession.builder.getOrCreate()
 
@@ -85,7 +86,7 @@ workspace.serving_endpoints.create(
 # MAGIC ### Call the endpoint
 
 # COMMAND ----------
-
+dbutils = DBUtils(spark)
 token = dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiToken().get()
 host = spark.conf.get("spark.databricks.workspaceUrl")
 
@@ -110,7 +111,7 @@ required_columns = [
     "type_of_meal_plan",
     "room_type_reserved",
     "market_segment_type",
-    "booking_id"
+    "booking_id",
 ]
 
 train_set = spark.table(f"{catalog_name}.{schema_name}.train_set").toPandas()

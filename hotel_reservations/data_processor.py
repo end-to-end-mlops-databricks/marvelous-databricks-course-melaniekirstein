@@ -19,11 +19,9 @@ class DataProcessor:
         """
         Convert DataFrame column names to snake_case.
         """
-        self.df.columns = [
-            col.lower() for col in self.df.columns
-        ]
+        self.df.columns = [col.lower() for col in self.df.columns]
         return self.df
-    
+
     def preprocess_data(self):
         """
         Preprocess the data according to the configuration.

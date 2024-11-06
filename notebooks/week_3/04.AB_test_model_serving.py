@@ -20,8 +20,9 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
 import hashlib
 import requests
+from pyspark.dbutils import DBUtils
 
-from hotel_reservations.config import ProjectConfig 
+from hotel_reservations.config import ProjectConfig
 
 # Set up MLflow for tracking and model registry
 mlflow.set_tracking_uri("databricks")
@@ -114,9 +115,7 @@ with mlflow.start_run(tags={"model_class": "A", "git_sha": git_sha}) as run:
     signature = infer_signature(model_input=X_train, model_output=y_pred)
 
     # Log the input dataset for tracking reproducibility
-    dataset = mlflow.data.from_spark(train_set_spark,
-                                     table_name=f"{catalog_name}.{schema_name}.train_set",
-                                     version="0")
+    dataset = mlflow.data.from_spark(train_set_spark, table_name=f"{catalog_name}.{schema_name}.train_set", version="0")
     mlflow.log_input(dataset, context="training")
 
     # Log the pipeline model in MLflow with a unique artifact path
@@ -162,8 +161,7 @@ with mlflow.start_run(tags={"model_class": "B", "git_sha": git_sha}) as run:
     mlflow.log_metric("log_loss", log_loss_value)
     signature = infer_signature(model_input=X_train, model_output=y_pred)
 
-    dataset = mlflow.data.from_spark(train_set_spark,
-                                     table_name=f"{catalog_name}.{schema_name}.train_set", version="0")
+    dataset = mlflow.data.from_spark(train_set_spark, table_name=f"{catalog_name}.{schema_name}.train_set", version="0")
     mlflow.log_input(dataset, context="training")
     mlflow.sklearn.log_model(sk_model=pipeline, artifact_path="lightgbm-pipeline-model", signature=signature)
 
@@ -187,6 +185,7 @@ model_B = mlflow.sklearn.load_model(model_uri)
 # MAGIC %md
 # MAGIC ## Define Custom A/B Test Model
 
+
 # COMMAND ----------
 class HotelReservationModelWrapper(mlflow.pyfunc.PythonModel):
     def __init__(self, models):
@@ -207,7 +206,7 @@ class HotelReservationModelWrapper(mlflow.pyfunc.PythonModel):
             raise ValueError("The 'booking_id' value is missing.")
 
         hashed_id = hashlib.md5(reservation_id.encode(encoding="UTF-8")).hexdigest()
-        
+
         # Determine which model to use based on hashed_id
         if int(hashed_id, 16) % 2 == 0:
             predictions = self.model_a.predict(model_input.drop(["booking_id"], axis=1))
@@ -226,9 +225,7 @@ X_test = test_set[num_features + cat_features + ["booking_id"]]
 models = [model_A, model_B]
 wrapped_model = HotelReservationModelWrapper(models)  # pass loaded models to the wrapper
 example_input = X_test.iloc[0:1]  # Select the first row for prediction as example
-example_prediction = wrapped_model.predict(
-    context=None,
-    model_input=example_input)
+example_prediction = wrapped_model.predict(context=None, model_input=example_input)
 print("Example Prediction:", example_prediction)
 
 # COMMAND ----------
@@ -237,22 +234,14 @@ model_name = f"{catalog_name}.{schema_name}.hotel_reservations_model_pyfunc_ab_t
 
 with mlflow.start_run() as run:
     run_id = run.info.run_id
-    signature = infer_signature(model_input=X_train,
-                                model_output={"Prediction": 1,
-                                              "model": "Model B"})
-    dataset = mlflow.data.from_spark(train_set_spark,
-                                     table_name=f"{catalog_name}.{schema_name}.train_set",
-                                     version="0")
+    signature = infer_signature(model_input=X_train, model_output={"Prediction": 1, "model": "Model B"})
+    dataset = mlflow.data.from_spark(train_set_spark, table_name=f"{catalog_name}.{schema_name}.train_set", version="0")
     mlflow.log_input(dataset, context="training")
     mlflow.pyfunc.log_model(
-        python_model=wrapped_model,
-        artifact_path="pyfunc-hotel-reservations-model-ab",                  
-        signature=signature
+        python_model=wrapped_model, artifact_path="pyfunc-hotel-reservations-model-ab", signature=signature
     )
 model_version = mlflow.register_model(
-    model_uri=f"runs:/{run_id}/pyfunc-hotel-reservations-model-ab",
-    name=model_name,
-    tags={"git_sha": f"{git_sha}"}
+    model_uri=f"runs:/{run_id}/pyfunc-hotel-reservations-model-ab", name=model_name, tags={"git_sha": f"{git_sha}"}
 )
 # COMMAND ----------
 model = mlflow.pyfunc.load_model(model_uri=f"models:/{model_name}/{model_version.version}")
@@ -292,7 +281,7 @@ workspace.serving_endpoints.create(
 # MAGIC ### Call the endpoint
 
 # COMMAND ----------
-
+dbutils = DBUtils(spark)
 token = dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiToken().get()
 host = spark.conf.get("spark.databricks.workspaceUrl")
 
@@ -316,7 +305,7 @@ required_columns = [
     "type_of_meal_plan",
     "room_type_reserved",
     "market_segment_type",
-    "booking_id"
+    "booking_id",
 ]
 
 train_set = spark.table(f"{catalog_name}.{schema_name}.train_set").toPandas()
@@ -327,9 +316,7 @@ dataframe_records = [[record] for record in sampled_records]
 
 start_time = time.time()
 
-model_serving_endpoint = (
-    f"https://{host}/serving-endpoints/hotel-reservations-model-serving-ab-test/invocations"
-)
+model_serving_endpoint = f"https://{host}/serving-endpoints/hotel-reservations-model-serving-ab-test/invocations"
 
 response = requests.post(
     f"{model_serving_endpoint}",
@@ -343,4 +330,3 @@ execution_time = end_time - start_time
 print("Response status:", response.status_code)
 print("Reponse text:", response.text)
 print("Execution time:", execution_time, "seconds")
-
