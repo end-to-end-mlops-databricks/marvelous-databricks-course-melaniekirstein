@@ -1,8 +1,9 @@
 # Databricks notebook source
-# MAGIC %pip install ../housing_price-0.0.1-py3-none-any.whl
+# MAGIC #%pip install ../hotel_reservations-0.0.1-py3-none-any.whl
 
 # COMMAND ----------
-# MAGIC %restart_python
+
+# dbutils.library.restartPython()
 
 # COMMAND ----------
 
@@ -23,7 +24,7 @@ from databricks.sdk.service.catalog import (
 from databricks.sdk.service.serving import EndpointCoreConfigInput, ServedEntityInput
 from pyspark.sql import SparkSession
 
-from house_price.config import ProjectConfig
+from hotel_reservations.config import ProjectConfig
 
 spark = SparkSession.builder.getOrCreate()
 
@@ -39,10 +40,10 @@ schema_name = config.schema_name
 
 # COMMAND ----------
 
-online_table_name = f"{catalog_name}.{schema_name}.house_features_online"
+online_table_name = f"{catalog_name}.{schema_name}.hotel_reservation_features_online"
 spec = OnlineTableSpec(
-    primary_key_columns=["Id"],
-    source_table_full_name=f"{catalog_name}.{schema_name}.house_features",
+    primary_key_columns=["booking_id"],
+    source_table_full_name=f"{catalog_name}.{schema_name}.hotel_features",
     run_triggered=OnlineTableSpecTriggeredSchedulingPolicy.from_dict({"triggered": "true"}),
     perform_full_copy=False,
 )
@@ -52,10 +53,10 @@ online_table_pipeline = workspace.online_tables.create(name=online_table_name, s
 # COMMAND ----------
 
 
-config = ProjectConfig.from_yaml(config_path="/Volumes/mlops_dev/house_prices/data/project_config.yml")
+# config = ProjectConfig.from_yaml(config_path="/Volumes/mlops_dev/house_prices/data/project_config.yml")
 
-catalog_name = config.catalog_name
-schema_name = config.schema_name
+# catalog_name = config.catalog_name
+# schema_name = config.schema_name
 
 # COMMAND ----------
 
@@ -65,11 +66,11 @@ schema_name = config.schema_name
 # COMMAND ----------
 
 workspace.serving_endpoints.create(
-    name="house-prices-model-serving-fe",
+    name="hotel-reservations-mk-model-serving-fe",
     config=EndpointCoreConfigInput(
         served_entities=[
             ServedEntityInput(
-                entity_name=f"{catalog_name}.{schema_name}.house_prices_model_fe",
+                entity_name=f"{catalog_name}.{schema_name}.hotel_reservations_model_fe",
                 scale_to_zero_enabled=True,
                 workload_size="Small",
                 entity_version=1,
@@ -92,32 +93,24 @@ host = spark.conf.get("spark.databricks.workspaceUrl")
 
 # Excluding "OverallQual", "GrLivArea", "GarageCars" because they will be taken from feature look up
 required_columns = [
-    "LotFrontage",
-    "LotArea",
-    "OverallCond",
-    "YearBuilt",
-    "YearRemodAdd",
-    "MasVnrArea",
-    "TotalBsmtSF",
-    "MSZoning",
-    "Street",
-    "Alley",
-    "LotShape",
-    "LandContour",
-    "Neighborhood",
-    "Condition1",
-    "BldgType",
-    "HouseStyle",
-    "RoofStyle",
-    "Exterior1st",
-    "Exterior2nd",
-    "MasVnrType",
-    "Foundation",
-    "Heating",
-    "CentralAir",
-    "SaleType",
-    "SaleCondition",
-    "Id",
+    "no_of_adults",
+    "no_of_children",
+    "no_of_weekend_nights",
+    "no_of_week_nights",
+    "required_car_parking_space",
+    # "lead_time",
+    "arrival_year",
+    "arrival_month",
+    "arrival_date",
+    "repeated_guest",
+    "no_of_previous_cancellations",
+    "no_of_previous_bookings_not_canceled",
+    # "avg_price_per_room",
+    # "no_of_special_requests",
+    "type_of_meal_plan",
+    "room_type_reserved",
+    "market_segment_type",
+    "booking_id"
 ]
 
 train_set = spark.table(f"{catalog_name}.{schema_name}.train_set").toPandas()
@@ -136,7 +129,7 @@ dataframe_records[0]
 # COMMAND ----------
 start_time = time.time()
 
-model_serving_endpoint = f"https://{host}/serving-endpoints/house-prices-model-serving-fe/invocations"
+model_serving_endpoint = f"https://{host}/serving-endpoints/hotel-reservations-mk-model-serving-fe/invocations"
 
 response = requests.post(
     f"{model_serving_endpoint}",
@@ -153,7 +146,7 @@ print("Execution time:", execution_time, "seconds")
 
 # COMMAND ----------
 
-house_features = spark.table(f"{catalog_name}.{schema_name}.house_features").toPandas()
+house_features = spark.table(f"{catalog_name}.{schema_name}.hotel_features").toPandas()
 
 # COMMAND ----------
 
