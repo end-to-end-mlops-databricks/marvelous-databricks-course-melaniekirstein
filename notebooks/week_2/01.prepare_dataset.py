@@ -1,4 +1,11 @@
 # Databricks notebook source
+# MAGIC #%pip install ../hotel_reservations-0.0.1-py3-none-any.whl 
+
+# COMMAND ----------
+
+# dbutils.library.restartPython()
+
+# COMMAND ----------
 from hotel_reservations.data_processor import DataProcessor
 from hotel_reservations.config import ProjectConfig
 from datetime import datetime
@@ -14,7 +21,7 @@ config = ProjectConfig.from_yaml(config_path="../../project_config.yml")
 # COMMAND ----------
 # Load the hotel reservation dataset
 df = spark.read.csv(
-    "/Volumes/heiaepgah71pwedmld01001/mk_test/mlops_data/Hotel Reservations.csv", header=True, inferSchema=True
+    "/Volumes/heiaepgah71pwedmld01001/hotel_reservations_mk/raw_data/Hotel Reservations.csv", header=True, inferSchema=True
 ).toPandas()
 
 # COMMAND ----------

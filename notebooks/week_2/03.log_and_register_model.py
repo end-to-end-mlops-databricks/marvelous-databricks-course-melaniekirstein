@@ -1,4 +1,11 @@
 # Databricks notebook source
+# MAGIC #%pip install ../hotel_reservations-0.0.1-py3-none-any.whl
+
+# COMMAND ----------
+
+# dbutils.library.restartPython()
+
+# COMMAND ----------
 
 from pyspark.sql import SparkSession
 from hotel_reservations.config import ProjectConfig

@@ -1,4 +1,11 @@
 # Databricks notebook source
+# MAGIC #%pip install ../hotel_reservations-0.0.1-py3-none-any.whl
+
+# COMMAND ----------
+
+# dbutils.library.restartPython()
+
+# COMMAND ----------
 import mlflow
 import numpy as np
 import pandas as pd

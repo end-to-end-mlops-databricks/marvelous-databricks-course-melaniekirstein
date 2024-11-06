@@ -117,7 +117,7 @@ train_set = train_set.withColumn(
 train_set = train_set.withColumn(
     "no_of_previous_cancellations", train_set["no_of_previous_cancellations"].cast("double")
 )
-train_set = train_set.withColumn("booking_id", train_set["Booking_ID"].cast("string"))
+train_set = train_set.withColumn("booking_id", train_set["booking_id"].cast("string"))
 
 # Feature engineering setup
 training_set = fe.create_training_set(
@@ -162,7 +162,7 @@ preprocessor = ColumnTransformer(
 pipeline = Pipeline(steps=[("preprocessor", preprocessor), ("classifier", LGBMClassifier(**parameters))])
 
 # Set and start MLflow experiment
-mlflow.set_experiment(experiment_name="/Shared/hotel-reservations-mk")
+mlflow.set_experiment(experiment_name="/Shared/hotel-reservations-mk-fe")
 git_sha = "71f8c100e9c90b43fb52c580468aa675c630454e"
 
 with mlflow.start_run(tags={"branch": "week2", "git_sha": f"{git_sha}"}) as run:
