@@ -82,6 +82,7 @@ model = mlflow.sklearn.load_model(f"runs:/{run_id}/lightgbm-pipeline-model")
 # MAGIC ### 4. Define Custom Model Wrapper
 # MAGIC Define a custom wrapper for the model to support prediction and probability prediction.
 
+
 # COMMAND ----------
 # Define the custom model wrapper for predictions
 class HotelReservationseModelWrapper(mlflow.pyfunc.PythonModel):
@@ -106,6 +107,7 @@ class HotelReservationseModelWrapper(mlflow.pyfunc.PythonModel):
             predictions = {"Predicted Class": predicted_classes.tolist()}
 
         return predictions
+
 
 # COMMAND ----------
 # MAGIC %md
@@ -145,7 +147,7 @@ git_sha = "71f8c100e9c90b43fb52c580468aa675c630454e"
 with mlflow.start_run(tags={"branch": "week2", "git_sha": f"{git_sha}"}) as run:
     run_id = run.info.run_id
     signature = infer_signature(model_input=X_train, model_output={"Prediction": example_prediction})
-    
+
     # Log the training dataset as input to the model
     dataset = mlflow.data.from_spark(train_set, table_name=f"{catalog_name}.{schema_name}.train_set", version="0")
     mlflow.log_input(dataset, context="training")
@@ -156,7 +158,7 @@ with mlflow.start_run(tags={"branch": "week2", "git_sha": f"{git_sha}"}) as run:
         additional_pip_deps=["code/hotel_reservations-0.0.1-py3-none-any.whl"],
         additional_conda_channels=None,
     )
-    
+
     # Log the custom model with MLflow
     mlflow.pyfunc.log_model(
         python_model=wrapped_model,
@@ -177,9 +179,7 @@ loaded_model.unwrap_python_model()
 # Register the custom model in the MLflow Model Registry
 model_name = f"{catalog_name}.{schema_name}.hotel_reservations_mk_pyfunc"
 model_version = mlflow.register_model(
-    model_uri=f"runs:/{run_id}/pyfunc-hotel-reservations-mk-model", 
-    name=model_name, 
-    tags={"git_sha": f"{git_sha}"}
+    model_uri=f"runs:/{run_id}/pyfunc-hotel-reservations-mk-model", name=model_name, tags={"git_sha": f"{git_sha}"}
 )
 
 # COMMAND ----------

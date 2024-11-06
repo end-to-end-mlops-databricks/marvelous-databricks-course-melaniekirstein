@@ -51,9 +51,9 @@ config = ProjectConfig.from_yaml(config_path="../../project_config.yml")
 # Load the hotel reservation dataset
 df = spark.read.csv(
     "/Volumes/heiaepgah71pwedmld01001/hotel_reservations_mk/raw_data/Hotel Reservations.csv",
-    header=True,    # Specify that the CSV file contains header row
-    inferSchema=True # Enable schema inference
-).toPandas()        # Convert Spark DataFrame to Pandas DataFrame for local processing
+    header=True,  # Specify that the CSV file contains header row
+    inferSchema=True,  # Enable schema inference
+).toPandas()  # Convert Spark DataFrame to Pandas DataFrame for local processing
 
 # COMMAND ----------
 # MAGIC %md

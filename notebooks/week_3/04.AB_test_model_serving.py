@@ -3,9 +3,9 @@
 # MAGIC %md
 # MAGIC # A/B testing approach
 # MAGIC **Notebook**: 04.AB_test_model_serving.py
-# MAGIC 
+# MAGIC
 # MAGIC This notebook demonstrates an A/B testing approach to train two models using LightGBM, log them with MLflow, register them, and create a custom serving endpoint to serve predictions.
-# MAGIC 
+# MAGIC
 # MAGIC Overview:
 # MAGIC 1. Set up MLflow for tracking and model registry.
 # MAGIC 2. Load and prepare datasets.
@@ -204,6 +204,7 @@ model_B = mlflow.sklearn.load_model(model_uri)
 # COMMAND ----------
 # MAGIC %md
 # MAGIC ## 7. Define Custom A/B Test Model
+
 
 # COMMAND ----------
 # Define a custom A/B test model that selects the model based on hashed booking ID

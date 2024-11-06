@@ -10,7 +10,7 @@
 
 # MAGIC %md
 # MAGIC ## Create Online Table for House Features
-# MAGIC This section demonstrates the creation of an online table to store the house features used in the model. 
+# MAGIC This section demonstrates the creation of an online table to store the house features used in the model.
 # MAGIC The `hotel_features` table has been created as a feature lookup table.
 
 # COMMAND ----------
@@ -51,7 +51,7 @@ schema_name = config.schema_name
 
 # MAGIC %md
 # MAGIC ### 2. Create Online Table
-# MAGIC We create an online table for `hotel_reservation_features_online` using the source `hotel_features`. 
+# MAGIC We create an online table for `hotel_reservation_features_online` using the source `hotel_features`.
 # MAGIC The table will have a primary key of `booking_id`.
 
 # COMMAND ----------
@@ -104,7 +104,7 @@ host = spark.conf.get("spark.databricks.workspaceUrl")
 
 # MAGIC %md
 # MAGIC #### 4.1 Prepare Sample Request Data
-# MAGIC Here, we sample records from the training set and create the request body to call the model endpoint. 
+# MAGIC Here, we sample records from the training set and create the request body to call the model endpoint.
 # MAGIC Certain columns like "OverallQual", "GrLivArea", and "GarageCars" will be retrieved from the feature lookup.
 
 # COMMAND ----------
