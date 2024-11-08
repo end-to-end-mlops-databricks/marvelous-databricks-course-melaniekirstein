@@ -11,6 +11,7 @@ class ProjectConfig(BaseModel):
     schema_name: str
     id_field: str
     parameters: Dict[str, Any]  # Dictionary to hold model-related parameters
+    ab_test: Dict[str, Any]
 
     @classmethod
     def from_yaml(cls, config_path: str):

@@ -15,6 +15,13 @@ class DataProcessor:
         self.df = pandas_df
         self.config = config
 
+    def lower_case(self):
+        """
+        Convert DataFrame column names to snake_case.
+        """
+        self.df.columns = [col.lower() for col in self.df.columns]
+        return self.df
+
     def preprocess_data(self):
         """
         Preprocess the data according to the configuration.
@@ -29,6 +36,9 @@ class DataProcessor:
             self.y (pandas.Series): The target series.
             self.preprocessor (ColumnTransformer): The preprocessing pipeline.
         """
+
+        self.lower_case()
+
         # Remove rows with missing values in the target column
         target = self.config.target
         self.df = self.df.dropna(subset=[target])
